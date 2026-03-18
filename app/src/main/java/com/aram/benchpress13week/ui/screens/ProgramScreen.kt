@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -31,17 +34,38 @@ fun ProgramScreen(state: BenchUiState) {
                 workout.index == state.currentWorkoutIndex -> if (state.isPaused) "Current • Paused" else "Current"
                 else -> "Upcoming"
             }
-            Card(modifier = Modifier.fillMaxWidth()) {
+            val progress = if (workout.totalSets == 0) 0f else workout.completedSets.toFloat() / workout.totalSets.toFloat()
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = when {
+                        workout.index == state.currentWorkoutIndex -> MaterialTheme.colorScheme.primaryContainer
+                        workout.index < state.currentWorkoutIndex -> MaterialTheme.colorScheme.secondaryContainer
+                        else -> MaterialTheme.colorScheme.surface
+                    }
+                )
+            ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        "Week ${workout.week} • ${workout.dayLabel}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(
+                            text = status,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text("Week ${workout.week} • ${workout.dayLabel}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(workout.date.format(DateTimeFormatter.ISO_DATE))
+                    LinearProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Text("$status • ${workout.date.format(DateTimeFormatter.ISO_DATE)} • ${workout.completedSets}/${workout.totalSets} sets")
+                    Text("${workout.completedSets}/${workout.totalSets} sets complete", style = MaterialTheme.typography.bodySmall)
                     workout.exercises.forEachIndexed { index, exercise ->
                         Text("${index + 1}. ${exercise.name}", fontWeight = FontWeight.Bold)
                         exercise.prescriptions.forEach { line -> Text(line.summary) }
