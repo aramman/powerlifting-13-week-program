@@ -31,17 +31,25 @@ import androidx.compose.ui.unit.dp
 import com.aram.benchpress13week.data.GeneratedExercise
 import com.aram.benchpress13week.data.GeneratedSet
 import com.aram.benchpress13week.viewmodel.BenchUiState
+import java.time.Duration
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(
     state: BenchUiState,
     onTogglePaused: () -> Unit,
+    onStartWorkout: () -> Unit,
+    onEndWorkout: () -> Unit,
+    onDismissWorkoutSummary: () -> Unit,
     onCompleteWorkout: () -> Unit,
     onPreviousWorkout: () -> Unit,
+    onSkipWeek: () -> Unit,
     onToggleSetCompleted: (String) -> Unit,
 ) {
     val workout = state.currentWorkout
+    val activeSession = state.activeWorkoutSession
+    val isCurrentWorkoutActive = activeSession?.workoutIndex == workout?.index
     val progressFraction = if (state.workouts.isEmpty()) 0f else state.currentWorkoutIndex.toFloat() / state.workouts.size.toFloat()
 
     LazyColumn(
@@ -63,7 +71,11 @@ fun HomeScreen(
                 ) {
                     Text("Current Block", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        text = if (state.isPaused) "Paused. Your place is saved." else "Live cycle. Complete every set to advance.",
+                        text = when {
+                            isCurrentWorkoutActive -> "Workout in progress. Timer is running."
+                            state.isPaused -> "Paused. Your place is saved."
+                            else -> "Live cycle. Complete every set to advance."
+                        },
                         style = MaterialTheme.typography.bodyLarge
                     )
                     LinearProgressIndicator(
@@ -76,7 +88,51 @@ fun HomeScreen(
                     ) {
                         MetricPill("Workout", "${state.currentWorkoutIndex + 1}/${state.workouts.size}")
                         workout?.let { MetricPill("Sets", "${it.completedSets}/${it.totalSets}") }
-                        MetricPill("Status", if (state.isPaused) "Paused" else "Active")
+                        MetricPill(
+                            "Status",
+                            when {
+                                isCurrentWorkoutActive -> "Training"
+                                state.isPaused -> "Paused"
+                                else -> "Ready"
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        state.lastWorkoutSummary?.let { summary ->
+            val summaryWorkout = state.workouts.getOrNull(summary.workoutIndex)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("Last Workout Summary", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            summaryWorkout?.let { "Week ${it.week} • ${it.dayLabel}" } ?: "Completed workout",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            MetricPill("Time", formatDuration(summary.durationMillis))
+                            MetricPill("Sets", summary.completedSets.toString())
+                            MetricPill("Volume", formatKg(summary.totalVolumeKg))
+                        }
+                        OutlinedButton(
+                            onClick = onDismissWorkoutSummary,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Dismiss Summary")
+                        }
                     }
                 }
             }
@@ -118,6 +174,13 @@ fun HomeScreen(
                         Text("Today", style = MaterialTheme.typography.titleLarge)
                         Text("Week ${workout.week} • ${workout.dayLabel}", fontWeight = FontWeight.Bold)
                         Text(workout.date.format(DateTimeFormatter.ISO_DATE))
+                        if (isCurrentWorkoutActive) {
+                            Text(
+                                "Workout timer: ${formatDuration(state.activeWorkoutElapsedMillis)}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         LinearProgressIndicator(
                             progress = {
                                 if (workout.totalSets == 0) 0f else workout.completedSets.toFloat() / workout.totalSets.toFloat()
@@ -136,23 +199,52 @@ fun HomeScreen(
                             }
                             OutlinedButton(
                                 onClick = onPreviousWorkout,
+                                enabled = activeSession == null,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Previous")
                             }
                         }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = if (isCurrentWorkoutActive) onEndWorkout else onStartWorkout,
+                                enabled = !state.isPaused && (activeSession == null || isCurrentWorkoutActive),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(if (isCurrentWorkoutActive) "End Workout" else "Start Workout")
+                            }
+                            OutlinedButton(
+                                onClick = onSkipWeek,
+                                enabled = !state.isPaused && activeSession == null && state.canSkipWeek,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Skip Week")
+                            }
+                        }
                         Button(
                             onClick = onCompleteWorkout,
-                            enabled = !state.isPaused && state.currentWorkoutAllSetsCompleted,
+                            enabled = !state.isPaused && activeSession == null && state.currentWorkoutAllSetsCompleted,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Next Workout")
                         }
-                        if (!state.currentWorkoutAllSetsCompleted) {
-                            Text(
-                                "Finish every set below to unlock the next workout.",
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                        when {
+                            isCurrentWorkoutActive -> {
+                                Text(
+                                    "Timer is running. End the workout to save time and volume stats.",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+
+                            !state.currentWorkoutAllSetsCompleted -> {
+                                Text(
+                                    "Finish every set below to unlock the next workout, or skip the week if you want to move ahead.",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
                         }
                     }
                 }
@@ -314,4 +406,21 @@ private fun SetRow(
             }
         }
     }
+}
+
+private fun formatDuration(durationMillis: Long): String {
+    val duration = Duration.ofMillis(durationMillis)
+    val hours = duration.toHours()
+    val minutes = duration.toMinutesPart()
+    val seconds = duration.toSecondsPart()
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(duration.toMinutes(), seconds)
+    }
+}
+
+private fun formatKg(value: Double): String {
+    val rounded = (value * 10).roundToInt() / 10.0
+    return if (rounded % 1.0 == 0.0) "${rounded.toInt()} kg" else "$rounded kg"
 }

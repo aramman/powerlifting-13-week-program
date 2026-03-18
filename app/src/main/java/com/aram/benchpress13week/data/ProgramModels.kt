@@ -33,6 +33,8 @@ data class ProgramDayTemplate(
 data class GeneratedSet(
     val id: String,
     val label: String,
+    val reps: Int? = null,
+    val weightKg: Double? = null,
     val isCompleted: Boolean,
 )
 
@@ -84,6 +86,22 @@ data class WorkoutProgress(
     val currentWorkoutIndex: Int = 0,
     val isPaused: Boolean = false,
     val completedSetIds: Set<String> = emptySet(),
+    val activeSession: ActiveWorkoutSession? = null,
+    val lastWorkoutSummary: WorkoutSummary? = null,
+)
+
+data class ActiveWorkoutSession(
+    val workoutIndex: Int,
+    val startedAtMillis: Long,
+    val completedSetIdsAtStart: Set<String> = emptySet(),
+)
+
+data class WorkoutSummary(
+    val workoutIndex: Int,
+    val finishedAtMillis: Long,
+    val durationMillis: Long,
+    val completedSets: Int,
+    val totalVolumeKg: Double,
 )
 
 object BenchProgramParser {
@@ -297,6 +315,8 @@ object BenchProgramGenerator {
                         } else {
                             "$setNumber x $reps"
                         },
+                        reps = reps.toIntOrNull(),
+                        weightKg = configuredWeight,
                         isCompleted = id in completedSetIds,
                     )
                 }
@@ -314,6 +334,7 @@ object BenchProgramGenerator {
                         GeneratedSet(
                             id = id,
                             label = "$setNumber x $reps",
+                            reps = reps.toIntOrNull(),
                             isCompleted = id in completedSetIds,
                         )
                     }
@@ -333,6 +354,8 @@ object BenchProgramGenerator {
                         GeneratedSet(
                             id = id,
                             label = "$setNumber x $reps$setSuffix",
+                            reps = reps.toIntOrNull(),
+                            weightKg = descriptor.weightKg,
                             isCompleted = id in completedSetIds,
                         )
                     }
@@ -357,6 +380,7 @@ object BenchProgramGenerator {
                 return PrescriptionDescriptor(
                     summary = "${formatKg(weight)} kg (${formatNumber(percent)}%) · $reps reps x $setCount sets",
                     setLabelSuffix = " @ ${formatKg(weight)} kg",
+                    weightKg = weight,
                 )
             }
         }
@@ -366,6 +390,7 @@ object BenchProgramGenerator {
             PrescriptionDescriptor(
                 summary = "${formatKg(weight)} kg · $reps reps x $setCount sets",
                 setLabelSuffix = " @ ${formatKg(weight)} kg",
+                weightKg = weight,
             )
         } else {
             PrescriptionDescriptor(
@@ -378,6 +403,7 @@ object BenchProgramGenerator {
     private data class PrescriptionDescriptor(
         val summary: String,
         val setLabelSuffix: String,
+        val weightKg: Double? = null,
     )
 
     private fun setId(workoutIndex: Int, exercisePath: String, prescriptionIndex: Int, setIndex: Int): String {

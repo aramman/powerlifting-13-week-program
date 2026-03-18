@@ -112,8 +112,12 @@ fun BenchApp(viewModel: BenchViewModel) {
                 HomeScreen(
                     state = state,
                     onTogglePaused = viewModel::togglePaused,
+                    onStartWorkout = viewModel::startWorkout,
+                    onEndWorkout = viewModel::endWorkout,
+                    onDismissWorkoutSummary = viewModel::dismissWorkoutSummary,
                     onCompleteWorkout = viewModel::completeWorkout,
                     onPreviousWorkout = viewModel::previousWorkout,
+                    onSkipWeek = viewModel::skipWeek,
                     onToggleSetCompleted = viewModel::toggleSetCompleted,
                 )
             }

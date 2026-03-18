@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -26,6 +27,14 @@ class ProfileRepository(private val context: Context) {
         val CURRENT_INDEX = intPreferencesKey("current_index")
         val PAUSED = booleanPreferencesKey("paused")
         val COMPLETED_SET_IDS = stringSetPreferencesKey("completed_set_ids")
+        val ACTIVE_SESSION_WORKOUT_INDEX = intPreferencesKey("active_session_workout_index")
+        val ACTIVE_SESSION_STARTED_AT = longPreferencesKey("active_session_started_at")
+        val ACTIVE_SESSION_COMPLETED_SET_IDS = stringSetPreferencesKey("active_session_completed_set_ids")
+        val LAST_SUMMARY_WORKOUT_INDEX = intPreferencesKey("last_summary_workout_index")
+        val LAST_SUMMARY_FINISHED_AT = longPreferencesKey("last_summary_finished_at")
+        val LAST_SUMMARY_DURATION = longPreferencesKey("last_summary_duration")
+        val LAST_SUMMARY_COMPLETED_SETS = intPreferencesKey("last_summary_completed_sets")
+        val LAST_SUMMARY_TOTAL_VOLUME = doublePreferencesKey("last_summary_total_volume")
     }
 
     val profileFlow: Flow<UserProfile> = context.dataStore.data.map { prefs ->
@@ -41,10 +50,33 @@ class ProfileRepository(private val context: Context) {
     }
 
     val progressFlow: Flow<WorkoutProgress> = context.dataStore.data.map { prefs ->
+        val activeSessionStartedAt = prefs[Keys.ACTIVE_SESSION_STARTED_AT]
+        val activeSessionWorkoutIndex = prefs[Keys.ACTIVE_SESSION_WORKOUT_INDEX]
+        val lastSummaryFinishedAt = prefs[Keys.LAST_SUMMARY_FINISHED_AT]
         WorkoutProgress(
             currentWorkoutIndex = prefs[Keys.CURRENT_INDEX] ?: 0,
             isPaused = prefs[Keys.PAUSED] ?: false,
             completedSetIds = prefs[Keys.COMPLETED_SET_IDS] ?: emptySet(),
+            activeSession = if (activeSessionStartedAt != null && activeSessionWorkoutIndex != null) {
+                ActiveWorkoutSession(
+                    workoutIndex = activeSessionWorkoutIndex,
+                    startedAtMillis = activeSessionStartedAt,
+                    completedSetIdsAtStart = prefs[Keys.ACTIVE_SESSION_COMPLETED_SET_IDS] ?: emptySet(),
+                )
+            } else {
+                null
+            },
+            lastWorkoutSummary = if (lastSummaryFinishedAt != null) {
+                WorkoutSummary(
+                    workoutIndex = prefs[Keys.LAST_SUMMARY_WORKOUT_INDEX] ?: 0,
+                    finishedAtMillis = lastSummaryFinishedAt,
+                    durationMillis = prefs[Keys.LAST_SUMMARY_DURATION] ?: 0L,
+                    completedSets = prefs[Keys.LAST_SUMMARY_COMPLETED_SETS] ?: 0,
+                    totalVolumeKg = prefs[Keys.LAST_SUMMARY_TOTAL_VOLUME] ?: 0.0,
+                )
+            } else {
+                null
+            },
         )
     }
 
@@ -74,6 +106,12 @@ class ProfileRepository(private val context: Context) {
         }
     }
 
+    suspend fun setCurrentWorkoutIndex(index: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.CURRENT_INDEX] = index.coerceAtLeast(0)
+        }
+    }
+
     suspend fun setPaused(paused: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[Keys.PAUSED] = paused
@@ -85,6 +123,14 @@ class ProfileRepository(private val context: Context) {
             prefs[Keys.CURRENT_INDEX] = 0
             prefs[Keys.PAUSED] = false
             prefs[Keys.COMPLETED_SET_IDS] = emptySet()
+            prefs.remove(Keys.ACTIVE_SESSION_WORKOUT_INDEX)
+            prefs.remove(Keys.ACTIVE_SESSION_STARTED_AT)
+            prefs.remove(Keys.ACTIVE_SESSION_COMPLETED_SET_IDS)
+            prefs.remove(Keys.LAST_SUMMARY_WORKOUT_INDEX)
+            prefs.remove(Keys.LAST_SUMMARY_FINISHED_AT)
+            prefs.remove(Keys.LAST_SUMMARY_DURATION)
+            prefs.remove(Keys.LAST_SUMMARY_COMPLETED_SETS)
+            prefs.remove(Keys.LAST_SUMMARY_TOTAL_VOLUME)
         }
     }
 
@@ -93,6 +139,42 @@ class ProfileRepository(private val context: Context) {
             val current = (prefs[Keys.COMPLETED_SET_IDS] ?: emptySet()).toMutableSet()
             if (!current.add(setId)) current.remove(setId)
             prefs[Keys.COMPLETED_SET_IDS] = current
+        }
+    }
+
+    suspend fun startWorkoutSession(workoutIndex: Int, completedSetIds: Set<String>, startedAtMillis: Long) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.ACTIVE_SESSION_WORKOUT_INDEX] = workoutIndex
+            prefs[Keys.ACTIVE_SESSION_STARTED_AT] = startedAtMillis
+            prefs[Keys.ACTIVE_SESSION_COMPLETED_SET_IDS] = completedSetIds
+            prefs.remove(Keys.LAST_SUMMARY_WORKOUT_INDEX)
+            prefs.remove(Keys.LAST_SUMMARY_FINISHED_AT)
+            prefs.remove(Keys.LAST_SUMMARY_DURATION)
+            prefs.remove(Keys.LAST_SUMMARY_COMPLETED_SETS)
+            prefs.remove(Keys.LAST_SUMMARY_TOTAL_VOLUME)
+        }
+    }
+
+    suspend fun endWorkoutSession(summary: WorkoutSummary) {
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.ACTIVE_SESSION_WORKOUT_INDEX)
+            prefs.remove(Keys.ACTIVE_SESSION_STARTED_AT)
+            prefs.remove(Keys.ACTIVE_SESSION_COMPLETED_SET_IDS)
+            prefs[Keys.LAST_SUMMARY_WORKOUT_INDEX] = summary.workoutIndex
+            prefs[Keys.LAST_SUMMARY_FINISHED_AT] = summary.finishedAtMillis
+            prefs[Keys.LAST_SUMMARY_DURATION] = summary.durationMillis
+            prefs[Keys.LAST_SUMMARY_COMPLETED_SETS] = summary.completedSets
+            prefs[Keys.LAST_SUMMARY_TOTAL_VOLUME] = summary.totalVolumeKg
+        }
+    }
+
+    suspend fun clearLastWorkoutSummary() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.LAST_SUMMARY_WORKOUT_INDEX)
+            prefs.remove(Keys.LAST_SUMMARY_FINISHED_AT)
+            prefs.remove(Keys.LAST_SUMMARY_DURATION)
+            prefs.remove(Keys.LAST_SUMMARY_COMPLETED_SETS)
+            prefs.remove(Keys.LAST_SUMMARY_TOTAL_VOLUME)
         }
     }
 
