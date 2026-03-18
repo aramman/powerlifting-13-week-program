@@ -9,7 +9,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
@@ -32,11 +34,11 @@ sealed class Screen(val route: String, val title: String) {
 fun BenchApp(viewModel: BenchViewModel) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
-    val state = viewModel.uiState
+    val state by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(state.value.message) {
-        if (state.value.message.isNotBlank()) {
-            snackbarHostState.showSnackbar(state.value.message)
+    LaunchedEffect(state.message) {
+        if (state.message.isNotBlank()) {
+            snackbarHostState.showSnackbar(state.message)
             viewModel.clearMessage()
         }
     }
@@ -61,13 +63,13 @@ fun BenchApp(viewModel: BenchViewModel) {
     ) { padding ->
         NavHost(navController = navController, startDestination = Screen.Home.route, modifier = Modifier.padding(padding)) {
             composable(Screen.Home.route) {
-                HomeScreen(state = state.value)
+                HomeScreen(state = state)
             }
             composable(Screen.Program.route) {
-                ProgramScreen(state = state.value)
+                ProgramScreen(state = state)
             }
             composable(Screen.Setup.route) {
-                SetupScreen(state = state.value, onSave = viewModel::saveProfile)
+                SetupScreen(state = state, onSave = viewModel::saveProfile)
             }
         }
     }
