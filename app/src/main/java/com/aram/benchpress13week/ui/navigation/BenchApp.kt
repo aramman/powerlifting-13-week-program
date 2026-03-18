@@ -63,13 +63,22 @@ fun BenchApp(viewModel: BenchViewModel) {
     ) { padding ->
         NavHost(navController = navController, startDestination = Screen.Home.route, modifier = Modifier.padding(padding)) {
             composable(Screen.Home.route) {
-                HomeScreen(state = state)
+                HomeScreen(
+                    state = state,
+                    onTogglePaused = viewModel::togglePaused,
+                    onCompleteWorkout = viewModel::completeWorkout,
+                    onPreviousWorkout = viewModel::previousWorkout,
+                )
             }
             composable(Screen.Program.route) {
                 ProgramScreen(state = state)
             }
             composable(Screen.Setup.route) {
-                SetupScreen(state = state, onSave = viewModel::saveProfile)
+                SetupScreen(
+                    state = state,
+                    onSave = viewModel::saveProfile,
+                    onResetProgress = viewModel::resetProgress,
+                )
             }
         }
     }
