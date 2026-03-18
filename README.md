@@ -1,26 +1,25 @@
 # powerlifting-13-week-program
 
-This is a ready Android Studio project for a custom 13-week bench press planner.
+Android app for a full 13-week powerlifting-focused bench progression block with per-set tracking.
 
 ## What it does
-- Accepts bench 1RM in kg
-- Lets you use a training max percentage (recommended: 95%)
-- Lets you choose weight rounding step
-- Generates the 13-week bench plan from the provided Excel logic
-- Shows a Today screen, full Program screen, and Setup screen
-- Stores settings locally with DataStore
+- Accepts maxes for bench, squat, deadlift, and overhead press
+- Accepts exact accessory weights for self-selected movements
+- Generates exact kg prescriptions for the full 13-week source program
+- Tracks every set individually and only advances when the workout is complete
+- Supports pause/resume and restart of the training block
+- Stores settings and progress locally with DataStore
 
-## Build APK
-1. Open this folder in Android Studio
-2. Let Gradle sync
-3. Run on device/emulator or use:
-   - Build -> Build Bundle(s) / APK(s) -> Build APK(s)
+## Release setup
+1. Copy `keystore.properties.example` to `keystore.properties`
+2. Point `storeFile` at your upload keystore
+3. Fill in the store password, key alias, and key password
+4. Build release with:
+   - `./gradlew assembleRelease`
+   - `./gradlew bundleRelease`
 
-## Notes
-- This project is intentionally offline-first and simple
-- Good next upgrades:
-  - mark workout done/skipped
-  - notes per workout
-  - history screen
-  - recalc after week 4 or week 8
-  - export/share current workout
+## Product next steps
+- Add onboarding and first-run sample values
+- Add privacy policy and support links
+- Add analytics and crash reporting
+- Add subscription/paywall if you want to monetize directly
