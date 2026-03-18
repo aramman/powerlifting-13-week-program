@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -24,6 +25,7 @@ class ProfileRepository(private val context: Context) {
         val ACCESSORY_WEIGHTS = stringPreferencesKey("accessory_weights")
         val CURRENT_INDEX = intPreferencesKey("current_index")
         val PAUSED = booleanPreferencesKey("paused")
+        val COMPLETED_SET_IDS = stringSetPreferencesKey("completed_set_ids")
     }
 
     val profileFlow: Flow<UserProfile> = context.dataStore.data.map { prefs ->
@@ -42,6 +44,7 @@ class ProfileRepository(private val context: Context) {
         WorkoutProgress(
             currentWorkoutIndex = prefs[Keys.CURRENT_INDEX] ?: 0,
             isPaused = prefs[Keys.PAUSED] ?: false,
+            completedSetIds = prefs[Keys.COMPLETED_SET_IDS] ?: emptySet(),
         )
     }
 
@@ -81,6 +84,15 @@ class ProfileRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[Keys.CURRENT_INDEX] = 0
             prefs[Keys.PAUSED] = false
+            prefs[Keys.COMPLETED_SET_IDS] = emptySet()
+        }
+    }
+
+    suspend fun toggleSetCompleted(setId: String) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[Keys.COMPLETED_SET_IDS] ?: emptySet()).toMutableSet()
+            if (!current.add(setId)) current.remove(setId)
+            prefs[Keys.COMPLETED_SET_IDS] = current
         }
     }
 

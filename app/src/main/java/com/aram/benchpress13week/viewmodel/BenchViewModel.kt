@@ -29,15 +29,17 @@ class BenchViewModel(application: Application) : AndroidViewModel(application) {
         repo.progressFlow,
         savedMessage,
     ) { profile, progress, message ->
-        val workouts = BenchProgramGenerator.generate(program, profile)
+        val workouts = BenchProgramGenerator.generate(program, profile, progress.completedSetIds)
         val currentIndex = progress.currentWorkoutIndex.coerceIn(0, workouts.size)
+        val currentWorkout = workouts.getOrNull(currentIndex)
         BenchUiState(
             profile = profile,
             workouts = workouts,
-            currentWorkout = workouts.getOrNull(currentIndex),
+            currentWorkout = currentWorkout,
             currentWorkoutIndex = currentIndex,
             isPaused = progress.isPaused,
             accessoryExerciseNames = accessoryExerciseNames,
+            currentWorkoutAllSetsCompleted = currentWorkout?.let { it.totalSets > 0 && it.completedSets == it.totalSets } ?: false,
             message = message,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BenchUiState())
@@ -99,6 +101,12 @@ class BenchViewModel(application: Application) : AndroidViewModel(application) {
     fun clearMessage() {
         savedMessage.value = ""
     }
+
+    fun toggleSetCompleted(setId: String) {
+        viewModelScope.launch {
+            repo.toggleSetCompleted(setId)
+        }
+    }
 }
 
 data class BenchUiState(
@@ -108,5 +116,6 @@ data class BenchUiState(
     val currentWorkoutIndex: Int = 0,
     val isPaused: Boolean = false,
     val accessoryExerciseNames: List<String> = emptyList(),
+    val currentWorkoutAllSetsCompleted: Boolean = false,
     val message: String = "",
 )

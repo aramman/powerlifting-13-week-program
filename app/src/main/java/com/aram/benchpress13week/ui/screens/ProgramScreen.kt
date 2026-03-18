@@ -41,14 +41,14 @@ fun ProgramScreen(state: BenchUiState) {
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("$status • ${workout.date.format(DateTimeFormatter.ISO_DATE)}")
+                    Text("$status • ${workout.date.format(DateTimeFormatter.ISO_DATE)} • ${workout.completedSets}/${workout.totalSets} sets")
                     workout.exercises.forEachIndexed { index, exercise ->
                         Text("${index + 1}. ${exercise.name}", fontWeight = FontWeight.Bold)
-                        exercise.prescriptions.forEach { line -> Text(line) }
+                        exercise.prescriptions.forEach { line -> Text(line.summary) }
                         exercise.notes.forEach { note -> Text(note, style = MaterialTheme.typography.bodySmall) }
                         exercise.alternative?.let { alternative ->
                             Text("Alternative: ${alternative.name}", style = MaterialTheme.typography.bodyMedium)
-                            alternative.prescriptions.forEach { line -> Text(line) }
+                            alternative.prescriptions.forEach { line -> Text(line.summary) }
                             alternative.notes.forEach { note -> Text(note, style = MaterialTheme.typography.bodySmall) }
                         }
                     }

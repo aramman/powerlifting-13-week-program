@@ -68,6 +68,7 @@ fun BenchApp(viewModel: BenchViewModel) {
                     onTogglePaused = viewModel::togglePaused,
                     onCompleteWorkout = viewModel::completeWorkout,
                     onPreviousWorkout = viewModel::previousWorkout,
+                    onToggleSetCompleted = viewModel::toggleSetCompleted,
                 )
             }
             composable(Screen.Program.route) {
