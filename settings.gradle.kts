@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BenchPress13Week"
+rootProject.name = "powerlifting-13-week-program"
 include(":app")

@@ -1,4 +1,4 @@
-# BenchPress13Week Android app
+# powerlifting-13-week-program
 
 This is a ready Android Studio project for a custom 13-week bench press planner.
 
